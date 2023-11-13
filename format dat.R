@@ -30,7 +30,11 @@ x$true_score <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA) # vector of 
 
 x$constraint <- 1
 
-# Format data to get x$true_score 
+#####################################
+#  Format data to get x$true_score  #
+#####################################
+
+# EXPLORING OUTSIDE OF FUNCTION BELOW
 
 # Format for each site separately 
 site <- "TM50"
@@ -64,6 +68,8 @@ range(strat_dat$Confidence)
 new_dat <- hour_dat[seq(1, nrow(hour_dat), 5), ]
 range(new_dat$Confidence)
 
+
+# FUNCTION TO RUN 
 
 # GENERATE FOR ONE SITE - we want to process the first 7 x 4 = 28 files for just 1 week of dets
 
