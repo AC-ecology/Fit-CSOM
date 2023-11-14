@@ -109,14 +109,11 @@ code <- nimbleCode({
 #     z_init[i] should be set to a number (we recommend 1) for all sites
 #     that have a value of NAs in z_data[i] (i.e., true occupancy is unknown)
 #     Otherwise, z_init[i] = NA
-class(x)
-x$NSITES <- as.integer(x$NSITES)
-x$NFILES <- as.integer(x$NFILES)
-x$z_data <- as.vector(x$z_data)
-x$annotation_all # cant be a vector as 2 dim?
-x$true_score <- logit(x$true_score) # same as above
 
-# initial values
+# Load rds data object with scores
+x <- readRDS("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/x.rds")
+
+# add initial values
 x$theta_init <- 0.5
 x$psi_init <- 0.5
 x$mu_init <- c(0, 1)

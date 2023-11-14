@@ -20,15 +20,7 @@ x <- list()
 x$NSITES <- 6       # Number of sites
 x$NFILES <- 6720     # Number of 3-sec clips per site
 
-# Data:
-x$z_data <- rep(NA, x$NSITES) # vector of length NSITES containing either NA, 0, or 1 for each site) - the “naive” Z information for each site, where NA = sites that have not had a positive-annotated clip at them yet, and 1 = sites that have had a positive-annotated clip at them yet (i.e. a 1 for sites that are “confirmed occupied by annotator”)
-
-x$annotation_all <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA) # vector of shape NSITES x NFILES containing either NA, 0, or 1 for each clip) - the annotation status of each clip. NA = unannotated, 0 = annotated negative, 1 = annotated positive.
-dim(x$annotation_all)
-
 x$true_score <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA) # vector of shape NSITES x NFILES containing a continuous score for each clip - the real-numbered score (logit of the 0-1 classifier score) produced by the ML classifier for each clip.
-
-x$constraint <- 1
 
 #####################################
 #  Format data to get x$true_score  #
@@ -132,20 +124,22 @@ x$true_score[3 , ] <- site_xdat(site = "TM52")
 x$true_score[4 , ] <- site_xdat(site = "TM53")
 x$true_score[5 , ] <- site_xdat(site = "TM54")
 x$true_score[6 , ] <- site_xdat(site = "TM55")
+# TO INVESTIGATE - Get error first time run each above line for any site other than TM50 then it runs fine 2nd time?
 
-# Get error first time run each above line for any site other than TM50 then it runs fine 2nd time?
+hist(x$true_score)
+hist(nimble::logit(x$true_score))
 
-# Also cannot save x as .Rdata object
+# Add rest of data elements to list x
+x$z_data <- rep(NA, x$NSITES) # vector of length NSITES containing either NA, 0, or 1 for each site) - the “naive” Z information for each site, where NA = sites that have not had a positive-annotated clip at them yet, and 1 = sites that have had a positive-annotated clip at them yet (i.e. a 1 for sites that are “confirmed occupied by annotator”)
 
-# Anyway, move on to use x in next file fit null CSOM.R 
+x$annotation_all <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA) # vector of shape NSITES x NFILES containing either NA, 0, or 1 for each clip) - the annotation status of each clip. NA = unannotated, 0 = annotated negative, 1 = annotated positive.
+dim(x$annotation_all)
 
-### QUESTIONS - do we need to include 0.00 conf score detections? this is "absence"
+x$constraint <- 1
 
-saveRDS(object = x)
+View(x)
 
-str(true_score)
-class(true_score)
-save(true_score, file = "scores.R")
-?save
+# Save x as .Rdata object
+setwd("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data")
 
-saveRDS(x, "x.Rdata")
+saveRDS(x, "x.rds")
