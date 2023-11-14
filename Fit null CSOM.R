@@ -1,4 +1,7 @@
 # This file is used to fit the continuous-score occupancy model
+## CSOM has been shown to outperform traditional occu model in terms of bias and
+## precision (unless annotation level is high - >10% data per site)
+
 library(rlist)
 #   If the species is present at the site and calling in the file, 
 #   the score is drawn from the Normal distribution:
@@ -7,8 +10,6 @@ library(rlist)
 #   If the species is absent at the site, or present and not calling
 #   in the file, the score is drawn from the Normal distribution:
 #     Normal(mu[2], sigma[2])
-# 
-
 
 require(nimble)
 
@@ -113,6 +114,10 @@ code <- nimbleCode({
 # Load rds data object with scores
 x <- readRDS("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/x.rds")
 
+# Model needs logit scores
+x$true_score <- logit(x$true_score)
+hist(x$true_score)
+
 # add initial values
 x$theta_init <- 0.5
 x$psi_init <- 0.5
@@ -172,3 +177,10 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel, showCompilerOutput = TRUE)
 set.seed(0) #Makes MCMC results replicable
 continuous_results <- runMCMC(Cmcmc, niter=20000, nburnin=10000, samples = TRUE, summary = TRUE)
 
+
+################################################################################
+##                        INTERPRETING OUTPUT             ######################
+################################################################################
+
+
+# Model failures are easily diagnosed by | mu1-mu2 | < 0.1
