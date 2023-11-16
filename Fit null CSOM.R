@@ -19,8 +19,8 @@ this.dir <- dirname(parent.frame(2)$ofile)
 setwd(this.dir)
 
 # Set up data and results save directories
-data_save_path <- './simulation_study_data' # Where simulated data were saved
-results_save_path <- "./simulation_study_results_continuousmodel"
+# data_save_path <- './simulation_study_data' # Where simulated data were saved
+results_save_path <- "./results_CSOM"
 if(!dir.exists(results_save_path)){dir.create(results_save_path, recursive = TRUE)}
 nimbleOptions(clearNimbleFunctionsAfterCompiling = TRUE)
 
@@ -112,11 +112,18 @@ code <- nimbleCode({
 #     Otherwise, z_init[i] = NA
 
 # Load rds data object with scores
-x <- readRDS("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/x.rds")
+x <- readRDS("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/x_zero.rds")
+
+# Prior to model fitting, explore score distribution
+length(which(x$true_score < 0.001)) / length(x$true_score) # half scores below 0.001 
 
 # Model needs logit scores
 x$true_score <- logit(x$true_score)
-hist(x$true_score)
+
+hist(logit(x$true_score[x$true_score > 0]), main = "Histogram of logit score distributions", xlab = "Logit confidence score")
+
+hist(sample(x$true_score[x$true_score > 0.1], 100), add = TRUE, col = "red")
+
 
 # add initial values
 x$theta_init <- 0.5
@@ -124,7 +131,6 @@ x$psi_init <- 0.5
 x$mu_init <- c(0, 1)
 x$sigma_init <- c(1, 2)
 x$z_init <- rep(1, x$NSITES)
-
 
 counter <- 0
 
@@ -175,12 +181,13 @@ Cmcmc <- compileNimble(Rmcmc, project = Rmodel, showCompilerOutput = TRUE)
 # These are placeholders to keep the structure of the annotations and the scores the same
 # NIMBLE will notify you of these NAs but this is not a cause for concern.
 set.seed(0) #Makes MCMC results replicable
-continuous_results <- runMCMC(Cmcmc, niter=20000, nburnin=10000, samples = TRUE, summary = TRUE)
+continuous_results <- runMCMC(Cmcmc, niter=10000, nburnin=5000, samples = TRUE, summary = TRUE)
 
+hist(x$true_score, main = "Logit score distribution")
 
+results <- list()
+results[[1]] <- continuous_results$summary
 ################################################################################
 ##                        INTERPRETING OUTPUT             ######################
 ################################################################################
 
-
-# Model failures are easily diagnosed by | mu1-mu2 | < 0.1

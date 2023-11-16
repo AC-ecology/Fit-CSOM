@@ -3,13 +3,13 @@
 # morning, with no lunch recordings = 4 files per day 
 
 # FILES - Nrow = no. 3 secs in 1 hour (20) x no. species included in e-bird checklist (110)
-# Ncol = start time (secs), sp name, confidence score, 
+# Ncol = start time (secs), sp name, confidence score
 
 # For this example practice fit, I am using 5 sites (N = 5), 1 species (Wren),
 # and 6720 clips per site (see below)
 ## Use data for 7 days only - whole data is 2400 at dawn, 2400 at dusk - 
 # From this, select every 5th clip (480 clips at dawn, 480 at dusk) 
-# equivalent to sampling 12 min of every hour (discont.)
+# equivalent to sampling 12 min of every hour (discont.) - BUT ENSURE NO ABSOLUTE ZEROS ARE INCLUDED
 
 ## NOTE - in future, species specific subsample can be drawn knowing ecology of the species
 ### i.e. dawn or dusk, repetitiveness of call (thinner subsample) and commonness of call
@@ -30,27 +30,22 @@ x$true_score <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA) # vector of 
 
 # Format for each site separately 
 site <- "TM50"
-
 wd <- setwd(paste("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw",
                   "/", site, sep = ""))
-
 hour_files <- list.files(wd)  # list of files in site folder
-
 hour_dat <- read.csv(hour_files[1]) # first hour
-
 hour_dat <- hour_dat[hour_dat$Common.name == "Eurasian Wren", ]
+hour_dat <- hour_dat %>% filter(hour_dat$Confidence > 0)
+range(hour_dat$Confidence) # whole distribution has skew to low scores
+hist(hour_dat$Confidence)
 
-range(hour_dat$Confidence) # very low confidence - 0.01 median, 0.11 mean
-# keeping 1 out of every 5 risks keeping only very low conf dets 
-# surely we just care if a wren was present in the file?!
-
-# TWO OPTIONS - keep every nth row, or take a stratified sample based on conf scores
+# THREE OPTIONS for sampling - keep every nth row, take random sample, or take a stratified sample based on conf scores
 
 # take a stratifed sample of 20% based on conf scores instead of time
 library(splitstackshape)
 
 # round confidence to 2dp
-hour_dat$Confidence <- round(hour_dat$Confidence, 2)
+hour_dat$Confidence <- round(hour_dat$Confidence, 4)
 
 set.seed(1)
 strat_dat <- stratified(hour_dat, group = "Confidence", 0.2, replace = FALSE)
@@ -72,11 +67,12 @@ range(new_dat$Confidence)
 ##  Site - name of site folder 
 ##  Species - focal species of exact format as BN output
 ##  N - to retain every Nth clip from the 1200 3-sec clips, default to keep 20%
-##  days - days of recordings to process, where each day has 4 recordings 
+##  days - days of recordings to process, where each day has 4 recordings
+##  threshold - only include scores over this value
 scores <- NULL
 
 site_xdat <- function(path = "C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw", 
-                      site, species = "Eurasian Wren", N = 5, days = 7) {
+                      site, species = "Eurasian Wren", N = 5, days = 7, threshold = 0) {
   
   wd <- setwd(paste(path,
                     "/", site, sep = ""))
@@ -90,9 +86,11 @@ site_xdat <- function(path = "C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw
     # get first hour recording dat
     hour_dat <- read.csv(hour_files[i])
     
-    # get full hour data for a single focal species 
+    # get hour data for a single focal species 
     hour_dat <- hour_dat[hour_dat$Common.name == paste(species), ]
-    # if(nrow(hour_dat) = 1200) stop("File does not contain 3600 3-sec clips")
+    
+    # remove "detections" over threshold score
+    hour_dat <- hour_dat %>% filter(hour_dat$Confidence > threshold)
     
     # take every Nth sample
     new_dat <- hour_dat[seq(1, nrow(hour_dat), N), ]
@@ -105,11 +103,8 @@ site_xdat <- function(path = "C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw
 }
 
 # Run in loop across sites, and store each site element in a list x$true_score
-
 x$true_score <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA)
-
 sitenames <- list.files("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw")
-
 scores <- NULL
 
 for(j in 1:5) {
@@ -129,6 +124,108 @@ x$true_score[6 , ] <- site_xdat(site = "TM55")
 hist(x$true_score)
 hist(nimble::logit(x$true_score))
 
+site_xdat_randsamp <- function(path = "C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw", 
+                      site, species = "Eurasian Wren", N = 240, days = 7, threshold = 0) {
+  
+  wd <- setwd(paste(path,
+                    "/", site, sep = ""))
+  
+  hour_files <- list.files(wd) # list all files in the site folder
+  
+  n_hour_files <- 4 * days # specify how many hour files are to be processed 
+  
+  for(i in 1:n_hour_files) {
+    
+    # get first hour recording dat
+    hour_dat <- read.csv(hour_files[i])
+    
+    # get full hour data for a single focal species 
+    hour_dat <- hour_dat[hour_dat$Common.name == paste(species), ]
+    
+    # remove "detections" with a zero score - these are not scores
+    hour_dat <- hour_dat %>% filter(hour_dat$Confidence > threshold)
+    
+    # take N random samples
+    new_dat <- hour_dat[sample(nrow(hour_dat), N), ]
+    #if(nrow(new_dat) != N) stop("Has not retained N 3-sec clips")
+    
+    # retain the scores from new_dat 
+    scores <- c(scores, new_dat$Confidence)
+  }
+  return(scores)
+}
+
+
+## Define an effective zero in a noisy enviro - run with diff thresholds
+
+# N = number of 3 sec clips to retain (min retained per hour file = N * 3 / 60)
+
+# must set wd to path before run
+setwd("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw")
+x_dat_thresholds <- function(path = "C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw", 
+                             site, species = "Eurasian Wren", N = 240, days = 7, threshold = 0) {
+  setwd(paste(path,
+              "/", site, sep = ""))
+  
+  hour_files <- list.files(paste(path,
+                                 "/", site, sep = "")) # list all files in the site folder
+  
+  n_hour_files <- 4 * days # specify how many hour files are to be processed 
+  
+  for(i in 1:n_hour_files) {
+    
+    # get first hour recording dat
+    hour_dat <- read.csv(hour_files[i])
+    
+    # get hour data for a single focal species 
+    hour_dat <- hour_dat[hour_dat$Common.name == paste(species), ]
+    
+    # remove "detections" over threshold score
+    hour_dat <- hour_dat %>% filter(hour_dat$Confidence > threshold)
+    
+    # randomly sample N rows from the hour data 
+    new_dat <- hour_dat[sample(nrow(hour_dat), N, replace = FALSE), ]
+    
+    # retain the scores from new_dat 
+    scores <- c(scores, new_dat$Confidence)
+  }
+  return(scores)
+}
+
+scores <- NULL
+test <- x_dat_thresholds(site = "TM50")
+length(test) # should be 6720 
+
+
+setwd("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw")
+generate_site_dat <- function(NSITES) {
+  
+  # create empty score matrix
+  x$true_score <- matrix(nrow = x$NSITES, ncol = x$NFILES, data = NA)
+  
+  # get list of site names 
+  sitenames <- list.files("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data/Raw")
+  
+  # create empty score storage
+  scores <- NULL
+  
+  for(j in 1:NSITES) {
+    site <- sitenames[j]
+    xdat <- site_xdat(site = site)
+    x$true_score[j , ] <- xdat
+  }
+}
+
+
+x$true_score[1 , ] <- x_dat_thresholds(site = "TM50")
+x$true_score[2 , ] <- x_dat_thresholds(site = "TM51")
+x$true_score[3 , ] <- x_dat_thresholds(site = "TM52")
+x$true_score[4 , ] <- x_dat_thresholds(site = "TM53")
+x$true_score[5 , ] <- x_dat_thresholds(site = "TM54")
+x$true_score[6 , ] <- x_dat_thresholds(site = "TM55")
+
+
+
 # Add rest of data elements to list x
 x$z_data <- rep(NA, x$NSITES) # vector of length NSITES containing either NA, 0, or 1 for each site) - the “naive” Z information for each site, where NA = sites that have not had a positive-annotated clip at them yet, and 1 = sites that have had a positive-annotated clip at them yet (i.e. a 1 for sites that are “confirmed occupied by annotator”)
 
@@ -141,5 +238,4 @@ View(x)
 
 # Save x as .Rdata object
 setwd("C:/Users/ajpc1/Desktop/FIT CSOM TENTSMUIR/Data")
-
-saveRDS(x, "x.rds")
+saveRDS(x, "x_zero.rds")
