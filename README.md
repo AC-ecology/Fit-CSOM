@@ -1,4 +1,4 @@
-# Repository for fitting the CSOM to Tentsmuir data 
+# Repository for fitting the CSOM to audio data collected from Tentsmuir Forest, Fife, Scotland UK and processed with BirdNET
 
 Data Folder -> Raw:
 -Includes folders for each site
